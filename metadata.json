@@ -1,0 +1,6 @@
+{
+  "name": "QuickMart – Modern Online Shopping Platform",
+  "description": "Everything You Need, Just a Click Away. High-performance e-commerce platform with catalog browsing, smart search, live order tracking, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
