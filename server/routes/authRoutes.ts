@@ -1,49 +1,60 @@
 import { Router } from 'express';
 import { db } from '../db/database';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
-import { Address } from '../../src/types';
 
 export const authRouter = Router();
 
-// Register new customer
+// Register new user
 authRouter.post('/register', (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, username, email, password } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
   }
 
-  const existing = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (existing) {
+  const existingEmail = db.findUserByEmail(email);
+  if (existingEmail) {
     return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
   }
+
+  const generatedUsername = username?.trim().toLowerCase() || email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  const existingUsername = db.findUserByUsername(generatedUsername);
+  const finalUsername = existingUsername ? `${generatedUsername}_${Math.floor(100 + Math.random() * 900)}` : generatedUsername;
 
   const newUser = {
     id: `user-${Date.now()}`,
     name: name.trim(),
+    username: finalUsername,
     email: email.toLowerCase().trim(),
-    role: 'customer' as const,
-    phone: phone || '',
     passwordHash: password,
     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-    addresses: [],
+    bio: 'Excited to be on ChatFlow! Connect and chat anytime.',
+    status: 'online' as const,
+    role: 'user' as const,
+    lastSeen: new Date().toISOString(),
+    blockedUsers: [],
+    settings: {
+      theme: 'light' as const,
+      soundEnabled: true,
+      notificationsEnabled: true,
+      readReceipts: true,
+      lastSeenPrivacy: 'everyone' as const
+    },
     createdAt: new Date().toISOString()
   };
 
   db.users.push(newUser);
-
   const token = `${newUser.id}:${Date.now()}`;
-  const { passwordHash, ...userClean } = newUser;
 
   return res.status(201).json({
     success: true,
-    message: 'Account created successfully!',
+    message: 'Welcome to ChatFlow! Account created successfully.',
     token,
-    user: userClean
+    user: db.sanitizeUser(newUser)
   });
 });
 
-// Login customer or admin
+// Login
 authRouter.post('/login', (req, res) => {
   const { email, password } = req.body;
 
@@ -51,96 +62,73 @@ authRouter.post('/login', (req, res) => {
     return res.status(400).json({ success: false, message: 'Email and password are required.' });
   }
 
-  const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
+  const user = db.findUserByEmail(email);
   if (!user || user.passwordHash !== password) {
-    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    return res.status(401).json({ success: false, message: 'Invalid credentials. Please verify your email and password.' });
   }
 
+  if (user.isBlocked) {
+    return res.status(403).json({ success: false, message: 'This account has been suspended by administration.' });
+  }
+
+  user.status = 'online';
+  user.lastSeen = new Date().toISOString();
   const token = `${user.id}:${Date.now()}`;
-  const { passwordHash, ...userClean } = user;
 
   return res.json({
     success: true,
-    message: 'Welcome back to QuickMart!',
+    message: 'Welcome back!',
     token,
-    user: userClean
+    user: db.sanitizeUser(user)
   });
 });
 
 // Get current profile
 authRouter.get('/me', authMiddleware, (req: AuthenticatedRequest, res) => {
-  const { passwordHash, ...userClean } = req.user;
-  return res.json({ success: true, user: userClean });
+  return res.json({
+    success: true,
+    user: db.sanitizeUser(req.user)
+  });
 });
 
-// Update profile details
+// Update profile
 authRouter.put('/profile', authMiddleware, (req: AuthenticatedRequest, res) => {
-  const { name, phone } = req.body;
   const user = req.user;
+  const { name, bio, avatar, customStatus, settings } = req.body;
 
   if (name) user.name = name.trim();
-  if (phone !== undefined) user.phone = phone.trim();
+  if (bio !== undefined) user.bio = bio.trim();
+  if (avatar) user.avatar = avatar;
+  if (customStatus !== undefined) user.customStatus = customStatus;
+  if (settings) user.settings = { ...user.settings, ...settings };
 
-  const { passwordHash, ...userClean } = user;
-  return res.json({ success: true, message: 'Profile updated successfully!', user: userClean });
+  return res.json({
+    success: true,
+    message: 'Profile updated successfully!',
+    user: db.sanitizeUser(user)
+  });
 });
 
-// Add address
-authRouter.post('/address', authMiddleware, (req: AuthenticatedRequest, res) => {
+// Update status
+authRouter.put('/status', authMiddleware, (req: AuthenticatedRequest, res) => {
+  const { status, customStatus } = req.body;
   const user = req.user;
-  const { fullName, street, city, state, postalCode, country, phone, isDefault } = req.body;
 
-  if (!fullName || !street || !city || !postalCode) {
-    return res.status(400).json({ success: false, message: 'Please fill all required address fields.' });
-  }
+  if (status) user.status = status;
+  if (customStatus !== undefined) user.customStatus = customStatus;
+  user.lastSeen = new Date().toISOString();
 
-  if (!user.addresses) user.addresses = [];
-
-  if (isDefault) {
-    user.addresses.forEach((a: Address) => (a.isDefault = false));
-  }
-
-  const newAddress: Address = {
-    id: `addr-${Date.now()}`,
-    fullName,
-    street,
-    city,
-    state,
-    postalCode,
-    country: country || 'United States',
-    phone: phone || user.phone || '',
-    isDefault: isDefault || user.addresses.length === 0
-  };
-
-  user.addresses.push(newAddress);
-
-  return res.json({ success: true, message: 'Address saved successfully!', addresses: user.addresses });
-});
-
-// Delete address
-authRouter.delete('/address/:id', authMiddleware, (req: AuthenticatedRequest, res) => {
-  const user = req.user;
-  const { id } = req.params;
-
-  if (!user.addresses) user.addresses = [];
-  user.addresses = user.addresses.filter((a: Address) => a.id !== id);
-
-  return res.json({ success: true, message: 'Address deleted.', addresses: user.addresses });
+  return res.json({
+    success: true,
+    user: db.sanitizeUser(user)
+  });
 });
 
 // Forgot password
 authRouter.post('/forgot-password', (req, res) => {
   const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email address is required.' });
-  }
-
-  const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
-  // Always return friendly message for security
   return res.json({
     success: true,
-    message: user
-      ? `A password reset link and verification code have been dispatched to ${email}.`
-      : 'If an account matches that email address, password reset instructions have been dispatched.'
+    message: `If an account with ${email} exists, a password reset link has been dispatched.`
   });
 });

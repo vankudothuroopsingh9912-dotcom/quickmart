@@ -1,6 +1,6 @@
 {
-  "name": "QuickMart – Modern Online Shopping Platform",
-  "description": "Everything You Need, Just a Click Away. High-performance e-commerce platform with catalog browsing, smart search, live order tracking, and admin dashboard.",
+  "name": "ChatFlow – Real-Time Messaging Platform",
+  "description": "Connect Instantly. Communicate Seamlessly. Real-time messaging with private chats, group conversations, voice notes, and media sharing.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

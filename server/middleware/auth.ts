@@ -8,16 +8,19 @@ export interface AuthenticatedRequest extends Request {
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Authorization required. Please log in.' });
+    return res.status(401).json({ success: false, message: 'Authentication required. Please sign in.' });
   }
 
   const token = authHeader.split(' ')[1];
-  // Simple deterministic token simulation: token format "user-xxx:timestamp" or userId directly
   const userId = token.includes(':') ? token.split(':')[0] : token;
-  const user = db.users.find(u => u.id === userId);
+  const user = db.findUserById(userId);
 
   if (!user) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired session. Please log in again.' });
+    return res.status(401).json({ success: false, message: 'Invalid session token. Please sign in again.' });
+  }
+
+  if (user.isBlocked) {
+    return res.status(403).json({ success: false, message: 'Your account has been suspended by administration.' });
   }
 
   req.user = user;
@@ -26,8 +29,8 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
 
 export function adminMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   authMiddleware(req, res, () => {
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Admin privileges required.' });
+    if (req.user?.role !== 'admin' && req.user?.role !== 'moderator') {
+      return res.status(403).json({ success: false, message: 'Administrator privileges required.' });
     }
     next();
   });

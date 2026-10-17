@@ -1,156 +1,234 @@
-import { Product, Category, User, Order, Review, Coupon, ContactMessage, OrderStatus } from '../../src/types';
-import { initialCategories, initialProducts, initialCoupons, initialUsers } from '../data/seedData';
+import {
+  User,
+  Conversation,
+  Message,
+  Notification,
+  Report,
+  AuditLog,
+  UserStatus
+} from '../../src/types';
+import {
+  initialUsers,
+  initialConversations,
+  initialMessages,
+  initialNotifications,
+  initialReports,
+  initialAuditLogs
+} from '../data/seedData';
 
 class DatabaseStore {
-  public categories: Category[] = [...initialCategories];
-  public products: Product[] = [...initialProducts];
-  public coupons: Coupon[] = [...initialCoupons];
-  public users: (User & { passwordHash?: string })[] = [
-    { ...initialUsers[0], passwordHash: 'admin123' },
-    { ...initialUsers[1], passwordHash: 'customer123' },
-  ];
-  public orders: Order[] = [
-    {
-      id: 'ORD-98214',
-      userId: 'user-customer',
-      customerName: 'Sarah Connor',
-      customerEmail: 'sarah@quickmart.com',
-      customerPhone: '+1 (555) 839-4412',
-      items: [
-        {
-          productId: 'prod-elec-1',
-          name: 'AcousticPro ANC Wireless Headphones',
-          price: 199.99,
-          quantity: 1,
-          image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
-          selectedVariants: { Color: 'Matte Black' }
-        },
-        {
-          productId: 'prod-mob-2',
-          name: 'VoltCore 20,000mAh 65W GaN Power Bank',
-          price: 49.99,
-          quantity: 1,
-          image: 'https://images.unsplash.com/photo-1609592426868-80e90f2305a2?w=800&auto=format&fit=crop&q=80'
-        }
-      ],
-      shippingAddress: initialUsers[1].addresses![0],
-      paymentMethod: 'Razorpay',
-      paymentStatus: 'Paid',
-      paymentTransactionId: 'pay_rzp_demo_982143',
-      shippingMethod: 'Express',
-      subtotal: 249.98,
-      discount: 24.99,
-      shippingFee: 0,
-      tax: 18.00,
-      total: 242.99,
-      couponCode: 'QUICK10',
-      status: 'Shipped',
-      trackingNumber: 'QM-EXP-8891024',
-      carrier: 'QuickMart Express Carrier',
-      estimatedDelivery: 'October 19, 2026',
-      createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      canCancel: false,
-      timeline: [
-        {
-          status: 'Order Placed',
-          date: 'Oct 14, 2026 10:15 AM',
-          note: 'Order placed successfully and payment captured via Razorpay.',
-          completed: true
-        },
-        {
-          status: 'Confirmed',
-          date: 'Oct 14, 2026 10:30 AM',
-          note: 'Payment verified and inventory allocated from Central Warehouse.',
-          completed: true
-        },
-        {
-          status: 'Processing',
-          date: 'Oct 15, 2026 08:00 AM',
-          note: 'Package packed and QA-checked with protective tamper-evident seal.',
-          completed: true
-        },
-        {
-          status: 'Shipped',
-          date: 'Oct 15, 2026 03:45 PM',
-          note: 'Dispatched via QuickMart Express. Tracking #QM-EXP-8891024 active.',
-          completed: true
-        },
-        {
-          status: 'Out for Delivery',
-          date: 'Estimated Oct 18, 2026',
-          note: 'Assigned to local delivery associate.',
-          completed: false
-        },
-        {
-          status: 'Delivered',
-          date: 'Estimated Oct 19, 2026',
-          note: 'Signed delivery at doorstep.',
-          completed: false
-        }
-      ]
+  public users: (User & { passwordHash: string })[] = JSON.parse(JSON.stringify(initialUsers));
+  public conversations: Conversation[] = JSON.parse(JSON.stringify(initialConversations));
+  public messages: Message[] = JSON.parse(JSON.stringify(initialMessages));
+  public notifications: Notification[] = JSON.parse(JSON.stringify(initialNotifications));
+  public reports: Report[] = JSON.parse(JSON.stringify(initialReports));
+  public auditLogs: AuditLog[] = JSON.parse(JSON.stringify(initialAuditLogs));
+
+  // Map user ID to active socket IDs
+  public userSockets: Map<string, Set<string>> = new Map();
+
+  // Presence helpers
+  public addSocket(userId: string, socketId: string) {
+    if (!this.userSockets.has(userId)) {
+      this.userSockets.set(userId, new Set());
     }
-  ];
+    this.userSockets.get(userId)!.add(socketId);
 
-  public reviews: Review[] = [
-    {
-      id: 'rev-1',
-      productId: 'prod-elec-1',
-      userId: 'user-customer',
-      userName: 'Sarah Connor',
-      rating: 5,
-      title: 'Best ANC headphones in this price category!',
-      comment: 'The noise cancellation is shockingly good on airplanes and trains. Battery lasted me almost a full week without a recharge.',
-      verifiedPurchase: true,
-      createdAt: '2026-09-15T14:30:00Z'
-    },
-    {
-      id: 'rev-2',
-      productId: 'prod-elec-1',
-      userId: 'user-2',
-      userName: 'David Miller',
-      rating: 5,
-      title: 'Comfortable for 8+ hour work days',
-      comment: 'Zero ear pressure fatigue. Deep rich bass and crisp highs. Pair easily with my laptop and phone simultaneously.',
-      verifiedPurchase: true,
-      createdAt: '2026-09-18T09:12:00Z'
-    },
-    {
-      id: 'rev-3',
-      productId: 'prod-mob-1',
-      userId: 'user-customer',
-      userName: 'Sarah Connor',
-      rating: 5,
-      title: 'The camera clarity is next level',
-      comment: 'The 200MP sensor catches astonishing detail even in dim evening light. Fast 100W charging is a lifesaver.',
-      verifiedPurchase: true,
-      createdAt: '2026-09-22T16:00:00Z'
+    const user = this.findUserById(userId);
+    if (user && user.status === 'offline') {
+      user.status = 'online';
+      user.lastSeen = new Date().toISOString();
     }
-  ];
+  }
 
-  public messages: ContactMessage[] = [];
-
-  // Helper method to recalculate product rating and review count
-  public recalculateProductRating(productId: string) {
-    const prodReviews = this.reviews.filter(r => r.productId === productId);
-    const product = this.products.find(p => p.id === productId);
-    if (product) {
-      if (prodReviews.length === 0) {
-        product.reviewCount = 0;
-        product.rating = 5.0;
-      } else {
-        const sum = prodReviews.reduce((acc, r) => acc + r.rating, 0);
-        product.rating = Number((sum / prodReviews.length).toFixed(1));
-        product.reviewCount = prodReviews.length;
+  public removeSocket(userId: string, socketId: string) {
+    const sockets = this.userSockets.get(userId);
+    if (sockets) {
+      sockets.delete(socketId);
+      if (sockets.size === 0) {
+        this.userSockets.delete(userId);
+        const user = this.findUserById(userId);
+        if (user && user.status === 'online') {
+          user.status = 'offline';
+          user.lastSeen = new Date().toISOString();
+        }
       }
     }
   }
 
-  // Deduct stock on order creation
-  public deductStock(productId: string, quantity: number) {
-    const prod = this.products.find(p => p.id === productId);
-    if (prod) {
-      prod.stock = Math.max(0, prod.stock - quantity);
+  public isUserOnline(userId: string): boolean {
+    const sockets = this.userSockets.get(userId);
+    return Boolean(sockets && sockets.size > 0);
+  }
+
+  // User queries
+  public findUserById(id: string): (User & { passwordHash: string }) | undefined {
+    return this.users.find(u => u.id === id);
+  }
+
+  public findUserByEmail(email: string): (User & { passwordHash: string }) | undefined {
+    return this.users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
+  }
+
+  public findUserByUsername(username: string): (User & { passwordHash: string }) | undefined {
+    return this.users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
+  }
+
+  public searchUsers(query: string, currentUserId: string): User[] {
+    const q = query.toLowerCase().trim();
+    return this.users
+      .filter(u => u.id !== currentUserId && !u.isBlocked)
+      .filter(u => u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      .map(this.sanitizeUser);
+  }
+
+  public sanitizeUser(user: User & { passwordHash?: string }): User {
+    const { passwordHash, ...safe } = user;
+    return safe;
+  }
+
+  // Conversation queries
+  public getUserConversations(userId: string): Conversation[] {
+    return this.conversations
+      .filter(c => c.participantIds.includes(userId))
+      .map(conv => {
+        // Populate participants
+        const participants = conv.participantIds
+          .map(id => this.findUserById(id))
+          .filter(Boolean)
+          .map(u => this.sanitizeUser(u!));
+
+        // Find last message
+        const convMessages = this.messages.filter(m => m.conversationId === conv.id);
+        const lastMessage = convMessages.length > 0 ? convMessages[convMessages.length - 1] : undefined;
+
+        // Calculate unread
+        const unreadCount = convMessages.filter(
+          m => m.senderId !== userId && !m.readBy.includes(userId)
+        ).length;
+
+        const pinnedMsg = conv.pinnedMessageId
+          ? this.messages.find(m => m.id === conv.pinnedMessageId)
+          : undefined;
+
+        return {
+          ...conv,
+          participants,
+          lastMessage,
+          unreadCount,
+          pinnedMessage: pinnedMsg
+        };
+      })
+      .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+  }
+
+  public findConversationById(id: string): Conversation | undefined {
+    const conv = this.conversations.find(c => c.id === id);
+    if (!conv) return undefined;
+
+    const participants = conv.participantIds
+      .map(pId => this.findUserById(pId))
+      .filter(Boolean)
+      .map(u => this.sanitizeUser(u!));
+
+    const convMessages = this.messages.filter(m => m.conversationId === conv.id);
+    const lastMessage = convMessages.length > 0 ? convMessages[convMessages.length - 1] : undefined;
+    const pinnedMsg = conv.pinnedMessageId ? this.messages.find(m => m.id === conv.pinnedMessageId) : undefined;
+
+    return {
+      ...conv,
+      participants,
+      lastMessage,
+      pinnedMessage: pinnedMsg
+    };
+  }
+
+  public getOrCreateDirectConversation(user1Id: string, user2Id: string): Conversation {
+    const existing = this.conversations.find(
+      c => c.type === 'direct' &&
+      c.participantIds.includes(user1Id) &&
+      c.participantIds.includes(user2Id)
+    );
+
+    if (existing) {
+      return this.findConversationById(existing.id)!;
     }
+
+    const u1 = this.findUserById(user1Id);
+    const u2 = this.findUserById(user2Id);
+
+    const newConv: Conversation = {
+      id: `conv-dir-${Date.now()}`,
+      type: 'direct',
+      participants: [this.sanitizeUser(u1!), this.sanitizeUser(u2!)],
+      participantIds: [user1Id, user2Id],
+      lastActivity: new Date().toISOString(),
+      unreadCount: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    this.conversations.unshift(newConv);
+    return newConv;
+  }
+
+  // Messages
+  public getMessagesByConversation(conversationId: string, limit = 50, before?: string): Message[] {
+    let filtered = this.messages.filter(m => m.conversationId === conversationId);
+    if (before) {
+      const beforeTime = new Date(before).getTime();
+      filtered = filtered.filter(m => new Date(m.createdAt).getTime() < beforeTime);
+    }
+    return filtered.slice(-limit);
+  }
+
+  public saveMessage(message: Message): Message {
+    this.messages.push(message);
+
+    // Update conversation lastActivity
+    const conv = this.conversations.find(c => c.id === message.conversationId);
+    if (conv) {
+      conv.lastActivity = message.createdAt;
+      conv.lastMessage = message;
+    }
+
+    return message;
+  }
+
+  public markMessagesAsRead(conversationId: string, userId: string): string[] {
+    const markedIds: string[] = [];
+    this.messages.forEach(m => {
+      if (m.conversationId === conversationId && m.senderId !== userId && !m.readBy.includes(userId)) {
+        m.readBy.push(userId);
+        m.status = 'read';
+        markedIds.push(m.id);
+      }
+    });
+    return markedIds;
+  }
+
+  public toggleMessageReaction(messageId: string, emoji: string, userId: string, userName: string): Message | undefined {
+    const msg = this.messages.find(m => m.id === messageId);
+    if (!msg) return undefined;
+
+    const existingIndex = msg.reactions.findIndex(r => r.emoji === emoji && r.userId === userId);
+    if (existingIndex > -1) {
+      msg.reactions.splice(existingIndex, 1);
+    } else {
+      msg.reactions.push({ emoji, userId, userName });
+    }
+    return msg;
+  }
+
+  // Notifications
+  public createNotification(data: Omit<Notification, 'id' | 'createdAt' | 'read'>): Notification {
+    const notif: Notification = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      ...data,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+    this.notifications.unshift(notif);
+    return notif;
   }
 }
 

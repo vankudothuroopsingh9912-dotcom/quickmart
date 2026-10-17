@@ -1,40 +1,57 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Server as SocketIOServer } from 'socket.io';
+
 import { authRouter } from './server/routes/authRoutes';
-import { productRouter } from './server/routes/productRoutes';
-import { categoryRouter } from './server/routes/categoryRoutes';
-import { orderRouter } from './server/routes/orderRoutes';
-import { couponRouter } from './server/routes/couponRoutes';
+import { userRouter } from './server/routes/userRoutes';
+import { conversationRouter } from './server/routes/conversationRoutes';
+import { messageRouter } from './server/routes/messageRoutes';
+import { notificationRouter } from './server/routes/notificationRoutes';
 import { adminRouter } from './server/routes/adminRoutes';
-import { contactRouter } from './server/routes/contactRoutes';
+import { setupSocketIO } from './server/sockets/socketHandler';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
+  const server = http.createServer(app);
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   const isProd = process.env.NODE_ENV === 'production';
 
-  app.use(express.json());
+  // Attach Socket.IO
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
 
-  // Mount API routers
+  setupSocketIO(io);
+
+  app.use(express.json({ limit: '20mb' }));
+
+  // API Routes
   app.use('/api/auth', authRouter);
-  app.use('/api/products', productRouter);
-  app.use('/api/categories', categoryRouter);
-  app.use('/api/orders', orderRouter);
-  app.use('/api/coupons', couponRouter);
+  app.use('/api/users', userRouter);
+  app.use('/api/conversations', conversationRouter);
+  app.use('/api/messages', messageRouter);
+  app.use('/api/notifications', notificationRouter);
   app.use('/api/admin', adminRouter);
-  app.use('/api/contact', contactRouter);
 
-  // Health check endpoint
+  // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      service: 'ChatFlow Real-Time Platform',
+      time: new Date().toISOString()
+    });
   });
 
   if (!isProd) {
-    // In development mode, attach Vite middleware
+    // In dev mode, attach Vite middleware
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -42,7 +59,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, serve built static files
+    // In production, serve built assets
     const distPath = path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -50,12 +67,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 QuickMart server running at http://0.0.0.0:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 ChatFlow server running at http://0.0.0.0:${PORT}`);
   });
 }
 
 startServer().catch(err => {
-  console.error('Failed to start QuickMart server:', err);
+  console.error('Failed to start ChatFlow server:', err);
   process.exit(1);
 });

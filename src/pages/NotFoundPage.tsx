@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, ArrowRight, Home, Compass } from 'lucide-react';
+import { MessageSquare, ArrowRight, Home } from 'lucide-react';
 
 interface NotFoundPageProps {
   onNavigate: (path: string) => void;
@@ -7,29 +7,23 @@ interface NotFoundPageProps {
 
 export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onNavigate }) => {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-6">
-      <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner text-4xl font-black">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-6 font-sans">
+      <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mx-auto text-3xl font-black border border-indigo-200/50 dark:border-indigo-800/50">
         404
       </div>
       <div className="space-y-2">
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Page Not Found</h1>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
-          The page you're searching for might have been moved, renamed, or is temporarily unavailable.
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Page Not Found</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+          The conversation, channel, or route you were looking for doesn't exist or has moved.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+      <div className="flex items-center justify-center gap-3 pt-2">
         <button
           onClick={() => onNavigate('/')}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
+          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/25 transition-all flex items-center gap-2"
         >
-          <Home className="w-4 h-4" /> Go to Homepage
-        </button>
-        <button
-          onClick={() => onNavigate('/shop')}
-          className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
-        >
-          <Compass className="w-4 h-4" /> Browse All Products
+          <Home className="w-4 h-4" /> Return to ChatFlow
         </button>
       </div>
     </div>

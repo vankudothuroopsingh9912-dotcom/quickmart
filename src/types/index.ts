@@ -1,176 +1,142 @@
+export type UserStatus = 'online' | 'busy' | 'away' | 'invisible' | 'offline';
+
+export type UserRole = 'user' | 'admin' | 'moderator';
+
 export interface User {
   id: string;
   name: string;
+  username: string;
   email: string;
-  role: 'customer' | 'admin';
-  phone?: string;
-  avatar?: string;
-  addresses?: Address[];
+  avatar: string;
+  bio?: string;
+  status: UserStatus;
+  customStatus?: string;
+  role: UserRole;
+  lastSeen: string;
+  isBlocked?: boolean;
+  blockedUsers?: string[];
+  settings?: {
+    theme: 'light' | 'dark' | 'system';
+    soundEnabled: boolean;
+    notificationsEnabled: boolean;
+    readReceipts: boolean;
+    lastSeenPrivacy: 'everyone' | 'contacts' | 'nobody';
+  };
   createdAt: string;
 }
 
-export interface Address {
-  id: string;
-  fullName: string;
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  phone: string;
-  isDefault?: boolean;
-}
+export type ConversationType = 'direct' | 'group';
 
-export interface ProductVariant {
+export interface Conversation {
   id: string;
-  name: string;
-  options: string[]; // e.g. ['64GB', '128GB', '256GB'] or ['Small', 'Medium', 'Large']
-}
-
-export interface ProductSpecification {
-  name: string;
-  value: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  originalPrice: number;
-  discountPercentage: number;
-  rating: number;
-  reviewCount: number;
-  stock: number;
-  category: string;
-  brand: string;
-  sku: string;
-  images: string[];
-  featured?: boolean;
-  isNewArrival?: boolean;
-  isDeal?: boolean;
-  dealEndsAt?: string;
-  variants?: ProductVariant[];
-  specifications: ProductSpecification[];
-  tags: string[];
+  type: ConversationType;
+  participants: User[];
+  participantIds: string[];
+  name?: string; // For groups
+  avatar?: string; // For groups
+  description?: string;
+  admins?: string[]; // user IDs
+  createdBy?: string;
+  lastMessage?: Message;
+  lastActivity: string;
+  unreadCount?: number;
+  isPinned?: boolean;
+  isMuted?: boolean;
+  isArchived?: boolean;
+  pinnedMessageId?: string;
+  pinnedMessage?: Message;
   createdAt: string;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string;
-  description: string;
-  image: string;
-  productCount: number;
-}
+export type MessageType = 'text' | 'image' | 'file' | 'audio' | 'voice' | 'video' | 'system';
 
-export interface CartItem {
-  id: string; // unique cart line id (e.g., productId + variants)
-  productId: string;
-  name: string;
-  price: number;
-  originalPrice: number;
-  image: string;
-  quantity: number;
-  selectedVariants?: Record<string, string>;
-  stock: number;
-  category: string;
-}
-
-export interface Coupon {
-  code: string;
-  discountPercentage: number;
-  minSpend: number;
-  maxDiscount?: number;
-  description: string;
-  expiresAt: string;
-}
-
-export type OrderStatus =
-  | 'Order Placed'
-  | 'Confirmed'
-  | 'Processing'
-  | 'Shipped'
-  | 'Out for Delivery'
-  | 'Delivered'
-  | 'Cancelled'
-  | 'Return Requested';
-
-export interface OrderTimelineEvent {
-  status: OrderStatus;
-  date: string;
-  note: string;
-  completed: boolean;
-}
-
-export interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-  selectedVariants?: Record<string, string>;
-}
-
-export interface Order {
-  id: string;
-  userId: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  items: OrderItem[];
-  shippingAddress: Address;
-  paymentMethod: 'COD' | 'Razorpay' | 'Card';
-  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
-  paymentTransactionId?: string;
-  shippingMethod: 'Standard' | 'Express';
-  subtotal: number;
-  discount: number;
-  shippingFee: number;
-  tax: number;
-  total: number;
-  couponCode?: string;
-  status: OrderStatus;
-  timeline: OrderTimelineEvent[];
-  trackingNumber: string;
-  carrier: string;
-  estimatedDelivery: string;
-  createdAt: string;
-  canCancel: boolean;
-  returnReason?: string;
-}
-
-export interface Review {
-  id: string;
-  productId: string;
+export interface MessageReaction {
+  emoji: string;
   userId: string;
   userName: string;
-  rating: number;
-  title: string;
-  comment: string;
-  verifiedPurchase: boolean;
-  createdAt: string;
 }
 
-export interface FilterState {
-  category: string;
-  brand: string[];
-  minPrice: number;
-  maxPrice: number;
-  rating: number | null;
-  inStockOnly: boolean;
-  search: string;
-  sortBy: 'popularity' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
-}
-
-export interface ContactMessage {
+export interface Attachment {
   id: string;
   name: string;
-  email: string;
-  subject: string;
-  message: string;
+  url: string;
+  type: string;
+  size: number;
+  duration?: number; // For voice/audio notes in seconds
+  thumbnailUrl?: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  sender: {
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+  };
+  type: MessageType;
+  content: string;
+  attachments?: Attachment[];
+  replyToId?: string;
+  replyTo?: {
+    id: string;
+    senderName: string;
+    content: string;
+    type: MessageType;
+  };
+  reactions: MessageReaction[];
+  isEdited?: boolean;
+  isDeleted?: boolean;
+  status: 'sending' | 'sent' | 'delivered' | 'read';
+  readBy: string[]; // user IDs
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'message' | 'group_invite' | 'mention' | 'reaction' | 'system';
+  relatedId?: string; // conversationId or messageId
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Report {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  reportedUserId?: string;
+  reportedUserName?: string;
+  messageId?: string;
+  messageContent?: string;
+  reason: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  actionTaken?: string;
+  createdAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  adminId: string;
+  adminName: string;
+  action: string;
+  target: string;
+  details?: string;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsersToday: number;
+  totalConversations: number;
+  totalGroups: number;
+  totalMessages: number;
+  pendingReports: number;
+  messagesTrend: { date: string; count: number }[];
+  activeUsersTrend: { date: string; count: number }[];
 }
